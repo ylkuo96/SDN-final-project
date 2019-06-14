@@ -116,7 +116,8 @@ public class AppComponent {
 	
 	// set timeout & priority
 	private static final int DEFAULT_TIMEOUT = 60;
-	private static final int DEFAULT_PRIORITY = 55556;
+	// should under priority of arp, otherwise will affect proxyarp
+	private static final int DEFAULT_PRIORITY = 39999; 
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected TopologyService topologyService;

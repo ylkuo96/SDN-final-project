@@ -200,7 +200,7 @@ public class AppComponent {
 
 			// do not process control packets, like LLDP and BDDP packets
             if (isControlPacket(ethPkt)) {
-				log.info("LLDP or BDDP packets are dropped");
+				//log.info("LLDP or BDDP packets are dropped");
                 return;
             }
 		
@@ -208,6 +208,7 @@ public class AppComponent {
 			if(ethPkt.getEtherType() != Ethernet.TYPE_ARP){
 				return;
 			}
+
 
             HostId id = HostId.hostId(ethPkt.getDestinationMAC());
 
@@ -220,33 +221,40 @@ public class AppComponent {
 			MacAddress macAddress = ethPkt.getSourceMAC();
 			PortNumber inPort = pkt.receivedFrom().port();
 
+			//log.info("proxyarp src mac:" + macAddress + ", dst mac:" + ethPkt.getDestinationMAC());
+			
 			HostId srcid = HostId.hostId(ethPkt.getSourceMAC());
 			Host srcHost = hostService.getHost(srcid);
 			while(srcHost == null){
 				srcHost = hostService.getHost(srcid);
 			}
+
+			/*	
 			Set<IpAddress> ips = srcHost.ipAddresses();
-			
 			while(ips.size() == 0){
 				ips = srcHost.ipAddresses();
 			}
 			IpAddress ip = (IpAddress) ips.toArray()[0];
-			
+			*/
+
 			// ARP request & ARP reply
 			ARP arpPkt = (ARP) ethPkt.getPayload();
+			IpAddress srcip = Ip4Address.valueOf(arpPkt.getSenderProtocolAddress());
 			IpAddress dstip = Ip4Address.valueOf(arpPkt.getTargetProtocolAddress());
 			if(arpPkt.getOpCode() == ARP.OP_REQUEST){
-				if(ARPtable.getMAC(ip) == null){
-					ARPtable.addRecord(switchId, ip, macAddress, inPort);
+				if(ARPtable.getMAC(srcip) == null){
+					ARPtable.addRecord(switchId, srcip, macAddress, inPort);
 				}
 				
 				if(ARPtable.getMAC(dstip) == null){
 					// flood
+					//log.info("flood");
 					flood(context);
 				}
 				else{
 					// build arp reply packet
 					MacAddress dstMac = ARPtable.getMAC(dstip);
+					//log.info("no flood, there exist dst ip to dst mac: " + dstMac);
 					Ethernet arpReply = ARP.buildArpReply(dstip.getIp4Address(), dstMac, ethPkt);	
 				
 					PortNumber toPort = inPort;
@@ -265,8 +273,8 @@ public class AppComponent {
 				}
 			}
 			else if(arpPkt.getOpCode() == ARP.OP_REPLY){
-				if(ARPtable.getMAC(ip) == null){
-					ARPtable.addRecord(switchId, ip, macAddress, inPort);
+				if(ARPtable.getMAC(srcip) == null){
+					ARPtable.addRecord(switchId, srcip, macAddress, inPort);
 				}
 
 				// build arp reply packet

@@ -29,6 +29,7 @@ import org.onlab.packet.ICMP;
 import org.onlab.packet.ICMP6;
 import org.onlab.packet.IPv4;
 import org.onlab.packet.IPv6;
+import org.onlab.packet.IpPrefix;
 import org.onlab.packet.Ip4Prefix;
 import org.onlab.packet.Ip6Prefix;
 import org.onlab.packet.MacAddress;
@@ -98,6 +99,8 @@ import java.util.concurrent.ExecutorService;
 
 import org.slf4j.LoggerFactory;
 
+import org.onlab.packet.IpAddress;
+
 /**
  * Skeletal ONOS application component.
  */
@@ -109,7 +112,8 @@ public class AppComponent {
 	
 	// set timeout & priority
 	private static final int DEFAULT_TIMEOUT = 60;
-	private static final int DEFAULT_PRIORITY = 55558;
+	// priority should under arp
+	private static final int DEFAULT_PRIORITY = 39998;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected TopologyService topologyService;
@@ -216,11 +220,9 @@ public class AppComponent {
 			}
 
 			// DHCP unicast will handle it
-			if(ethPkt.getEtherType() == Ethernet.TYPE_IPV4
-			   && ethPkt.getDestinationMAC().equals(MacAddress.BROADCAST)){
+			if(ethPkt.getDestinationMAC().equals(MacAddress.BROADCAST)){
 				return;
 			}
-
 
             HostId dstid = HostId.hostId(ethPkt.getDestinationMAC());
 			Host dst = hostService.getHost(dstid);
@@ -241,7 +243,7 @@ public class AppComponent {
 			//log.info("packet-in from: " + switchId);			
 
 			if(switchId.equals(dst.location().deviceId())){
-				installRule(context, dst.location().port(), switchId);
+				installRule(context, dst.location().port(), switchId, dst);
 				log.info("install rule for: " + switchId);
 				return;
 			}
@@ -304,7 +306,7 @@ public class AppComponent {
 				}
 				
 				log.info("install rule for: " + tmp.deviceId());
-				installRule(context, port, tmp.deviceId());
+				installRule(context, port, tmp.deviceId(), dst);
 			}
         }
 
@@ -398,14 +400,25 @@ public class AppComponent {
     }	
 	
     // Install a rule forwarding the packet to the specified port.
-    private void installRule(PacketContext context, PortNumber portNumber, DeviceId did) {
+    private void installRule(PacketContext context, PortNumber portNumber, DeviceId did, Host dst) {
 		InboundPacket pkt = context.inPacket();
         Ethernet inPkt = pkt.parsed();
 		PortNumber inPort = pkt.receivedFrom().port();
+		/*
+		Set<IpAddress> ips = dst.ipAddresses();
+		while(ips.size() == 0){
+			ips = dst.ipAddresses();
+		}
+		IpAddress ipaddr = (IpAddress) ips.toArray()[0];
+		//IpPrefix ip = new IpPrefix(ipaddr, 24);
+		IpPrefix ip = new IpPrefix();
+		ip.valueOf(ipaddr, 24);
+		*/
 
 		// flow rule selector
         TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
-		selectorBuilder.matchEthDst(inPkt.getDestinationMAC());
+		selectorBuilder.matchEthDst(inPkt.getDestinationMAC()).matchEthSrc(inPkt.getSourceMAC());
+		//.matchIPDst(ip);
 
 		// flow rule builder
         TrafficTreatment treatment = DefaultTrafficTreatment.builder()
