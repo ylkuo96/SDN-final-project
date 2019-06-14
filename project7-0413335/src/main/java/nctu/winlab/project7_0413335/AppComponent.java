@@ -227,6 +227,9 @@ public class AppComponent {
 			}
 			Set<IpAddress> ips = srcHost.ipAddresses();
 			
+			while(ips.size() == 0){
+				ips = srcHost.ipAddresses();
+			}
 			IpAddress ip = (IpAddress) ips.toArray()[0];
 			
 			// ARP request & ARP reply
@@ -258,7 +261,7 @@ public class AppComponent {
 						buffer
 					));
 
-					log.info("send arp reply to " + toId + ", " + toPort);
+					//log.info("send arp reply to " + toId + ", " + toPort);
 				}
 			}
 			else if(arpPkt.getOpCode() == ARP.OP_REPLY){
@@ -281,7 +284,7 @@ public class AppComponent {
 					buffer
 				));
 					
-				log.info("send arp reply to " + toId + ", " + toPort);
+				//log.info("send arp reply to " + toId + ", " + toPort);
 			}
         }
 

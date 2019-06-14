@@ -116,7 +116,7 @@ public class AppComponent {
 	
 	// set timeout & priority
 	private static final int DEFAULT_TIMEOUT = 60;
-	private static final int DEFAULT_PRIORITY = 55555;
+	private static final int DEFAULT_PRIORITY = 55556;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected TopologyService topologyService;
@@ -277,7 +277,7 @@ public class AppComponent {
             }
 			
 			if(ethPkt.getEtherType() == Ethernet.TYPE_ARP){
-				flood(context);
+				//flood(context);
 				return;
 			}
 
@@ -294,7 +294,7 @@ public class AppComponent {
 			   	String serverPort = dhcpServer.split("/")[1];
 			
 				if(switchId.equals(DeviceId.deviceId(serverDeviceId))){
-					log.info(switchId + " v.s" + serverDeviceId);
+					//log.info(switchId + " v.s " + serverDeviceId);
 					PortNumber port = PortNumber.fromString(serverPort);
 					installRule(context, port, switchId);
 					log.info("install DHCP broadcast packets for: " + switchId + ", to port: " + port);
@@ -364,7 +364,8 @@ public class AppComponent {
 			   	return;
 			}
 			/* --- */
-            
+           
+		    /*
 			HostId dstid = HostId.hostId(ethPkt.getDestinationMAC());
 			Host dst = hostService.getHost(dstid);
 			
@@ -446,6 +447,7 @@ public class AppComponent {
 				log.info("install rule for: " + tmp.deviceId());
 				installRule(context, port, tmp.deviceId());
 			}
+			*/
         }
 
     }
@@ -540,7 +542,6 @@ public class AppComponent {
 		InboundPacket pkt = context.inPacket();
         Ethernet inPkt = pkt.parsed();
 		PortNumber inPort = pkt.receivedFrom().port();
-		
 
 		// flow rule selector
         TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();

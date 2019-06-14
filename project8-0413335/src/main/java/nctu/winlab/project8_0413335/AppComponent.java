@@ -109,7 +109,7 @@ public class AppComponent {
 	
 	// set timeout & priority
 	private static final int DEFAULT_TIMEOUT = 60;
-	private static final int DEFAULT_PRIORITY = 10;
+	private static final int DEFAULT_PRIORITY = 55558;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected TopologyService topologyService;
@@ -211,7 +211,13 @@ public class AppComponent {
             }
 
 			if(ethPkt.getEtherType() == Ethernet.TYPE_ARP){
-				flood(context);
+				//flood(context);
+				return;
+			}
+
+			// DHCP unicast will handle it
+			if(ethPkt.getEtherType() == Ethernet.TYPE_IPV4
+			   && ethPkt.getDestinationMAC().equals(MacAddress.BROADCAST)){
 				return;
 			}
 
@@ -232,7 +238,7 @@ public class AppComponent {
 			MacAddress macAddress = ethPkt.getSourceMAC();
 			PortNumber inPort = pkt.receivedFrom().port();
 
-			log.info("packet-in from: " + switchId);			
+			//log.info("packet-in from: " + switchId);			
 
 			if(switchId.equals(dst.location().deviceId())){
 				installRule(context, dst.location().port(), switchId);
@@ -393,14 +399,9 @@ public class AppComponent {
 	
     // Install a rule forwarding the packet to the specified port.
     private void installRule(PacketContext context, PortNumber portNumber, DeviceId did) {
-        //
-        // We don't support (yet) buffer IDs in the Flow Service so
-        // packet out first.
-        //
 		InboundPacket pkt = context.inPacket();
         Ethernet inPkt = pkt.parsed();
 		PortNumber inPort = pkt.receivedFrom().port();
-		
 
 		// flow rule selector
         TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
@@ -411,8 +412,6 @@ public class AppComponent {
                 .setOutput(portNumber)
                 .build();
 
-		//log.info("install rule: eth-dst: " + inPkt.getDestinationMAC() + ", output to port: " + portNumber);
-		
 		// construct flow rule
         ForwardingObjective forwardingObjective = DefaultForwardingObjective.builder()
                 .withSelector(selectorBuilder.build())
@@ -427,9 +426,6 @@ public class AppComponent {
 
 		// flow modify
         flowObjectiveService.forward(did, forwardingObjective);
-		
-		// packetout to specified port
-		// packetOut(context, portNumber);
     }	
 
 	private class InternalTopologyListener implements TopologyListener {
