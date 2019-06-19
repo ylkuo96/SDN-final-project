@@ -24,44 +24,17 @@ import org.onosproject.net.config.basics.BasicElementConfig;
  * My Config class.
  */
 public class MyConfig extends Config<ApplicationId>{
-
-    // The JSON file should contain one field "dhcpServer".
     public static final String MY_NAME = "dhcpServer";
-
-    // To retreat the value.
     public String dhcpserver(){
         String name = get(MY_NAME, null);
         return name;
     }
-
-    // To set or clear the value.
     public BasicElementConfig dhcpserver(String name){
         return (BasicElementConfig) setOrClear(MY_NAME, name);
     }
 	
-	/*
-	// For ONOS to check whether an uploaded configuration is valid.
     @Override
     public boolean isValid(){
-        return hasOnlyFields(MY_NAME);
+		return hasOnlyFields(MY_NAME);
     }
-	*/
-    
-	/* --- */
-	public static final String MY_NAME2 = "demo";
-    public String myname2(){
-        String name = get(MY_NAME2, null);
-        return name;
-    }
-
-    public BasicElementConfig myname2(String name){
-        return (BasicElementConfig) setOrClear(MY_NAME2, name);
-    }
-    
-	// For ONOS to check whether an uploaded configuration is valid.
-    @Override
-    public boolean isValid(){
-        return hasFields(MY_NAME, MY_NAME2);
-    }
-	/* --- */
 }

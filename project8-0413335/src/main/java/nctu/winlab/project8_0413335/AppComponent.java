@@ -97,9 +97,15 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 
-import org.slf4j.LoggerFactory;
-
 import org.onlab.packet.IpAddress;
+
+import org.onosproject.net.config.ConfigFactory;
+import org.onosproject.net.config.NetworkConfigEvent;
+import org.onosproject.net.config.NetworkConfigListener;
+import org.onosproject.net.config.NetworkConfigRegistry;
+import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FACTORY;
+
+import org.slf4j.LoggerFactory;
 
 /**
  * Skeletal ONOS application component.
@@ -151,10 +157,46 @@ public class AppComponent {
 	private final TopologyListener topologyListener = new InternalTopologyListener();
 
 	private static ArrayList<Integer> shortestPath = new ArrayList<Integer>();
+
+	/* --- */
+	@Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+	protected NetworkConfigRegistry cfgService;
+
+	private final InternalConfigListener cfgListener = new InternalConfigListener();
+
+	private final Set<ConfigFactory> factories = ImmutableSet.of(new ConfigFactory<ApplicationId, nctu.winlab.project8_0413335.MyConfig>(APP_SUBJECT_FACTORY, 
+	nctu.winlab.project8_0413335.MyConfig.class, 
+	"myconfiG"){
+		@Override
+		public nctu.winlab.project8_0413335.MyConfig createConfig(){
+			return new nctu.winlab.project8_0413335.MyConfig();
+			}
+		}
+	);
+
+	// for config
+	private static String s1segID = "default";
+	private static String s2segID = "default";
+	private static String s3segID = "default";
+	private static String s2subNet = "default";
+	private static String s3subNet = "default";
+	private static String Host1 = "default";
+	private static String Host2 = "default";
+	private static String Host3 = "default";
+	private static String Host4 = "default";
+	private static String Host5 = "default";
+	/* --- */
 	
     @Activate
     protected void activate() {
 		appId = coreService.registerApplication("nctu.winlab.project8_0413335");
+
+		/* --- */
+		cfgService.addListener(cfgListener);
+		factories.forEach(cfgService::registerConfigFactory);
+		cfgListener.reconfigureNetwork(cfgService.getConfig(appId, nctu.winlab.project8_0413335.MyConfig.class));
+		/* --- */
+
         packetService.addProcessor(processor, PacketProcessor.director(2));
 		topologyService.addListener(topologyListener);
         requestIntercepts();
@@ -163,6 +205,11 @@ public class AppComponent {
 
     @Deactivate
     protected void deactivate() {
+		/* --- */
+		cfgService.removeListener(cfgListener);
+		factories.forEach(cfgService::unregisterConfigFactory);
+		/* --- */
+
 		withdrawIntercepts();
         flowRuleService.removeFlowRulesById(appId);
 		packetService.removeProcessor(processor);
@@ -170,6 +217,69 @@ public class AppComponent {
         processor = null;
         log.info("Stopped");
     }
+
+	/* --- */
+	private class InternalConfigListener implements NetworkConfigListener {
+		private void reconfigureNetwork(nctu.winlab.project8_0413335.MyConfig cfg){
+			if(cfg == null){
+				return;
+			}
+			if(cfg.s1segid() != null){
+				s1segID = cfg.s1segid();
+			}
+			if(cfg.s2segid() != null){
+				s2segID = cfg.s2segid();
+			}
+			if(cfg.s3segid() != null){
+				s3segID = cfg.s3segid();
+			}
+			if(cfg.s2subnet() != null){
+				s2subNet = cfg.s2subnet();
+			}
+			if(cfg.s3subnet() != null){
+				s3subNet = cfg.s3subnet();
+			}
+			if(cfg.h1() != null){
+				Host1 = cfg.h1();
+			}
+			if(cfg.h2() != null){
+				Host2 = cfg.h2();
+			}
+			if(cfg.h3() != null){
+				Host3 = cfg.h3();
+			}
+			if(cfg.h4() != null){
+				Host4 = cfg.h4();
+			}
+			if(cfg.h5() != null){
+				Host5 = cfg.h5();
+			}
+		}
+			
+		@Override
+		public void event(NetworkConfigEvent event){
+		// while configuration is uploaded, update the variable "myName".
+			if((event.type() == NetworkConfigEvent.Type.CONFIG_ADDED ||
+				event.type() == NetworkConfigEvent.Type.CONFIG_UPDATED) &&
+				event.configClass().equals(nctu.winlab.project8_0413335.MyConfig.class)){
+
+				nctu.winlab.project8_0413335.MyConfig cfg = cfgService.getConfig(appId, nctu.winlab.project8_0413335.MyConfig.class);
+				reconfigureNetwork(cfg);
+				log.info("(Re)configured, new s1 segment ID is {}", s1segID); 
+				log.info("(Re)configured, new s2 segment ID is {}", s2segID); 
+				log.info("(Re)configured, new s3 segment ID is {}", s3segID); 
+				log.info("(Re)configured, new s2 subnet is {}", s2subNet); 
+				log.info("(Re)configured, new s3 subnet is {}", s3subNet); 
+				log.info("(Re)configured, new Host1 is switch/port/mac: {}", Host1); 
+				log.info("(Re)configured, new Host2 is switch/port/mac: {}", Host2); 
+				log.info("(Re)configured, new Host3 is switch/port/mac: {}", Host3); 
+				log.info("(Re)configured, new Host4 is switch/port/mac: {}", Host4); 
+				log.info("(Re)configured, new Host5 is switch/port/mac: {}", Host5);
+			}
+		}
+	}
+	/* --- */
+
 
     /**
      * Request packet in via packet service.

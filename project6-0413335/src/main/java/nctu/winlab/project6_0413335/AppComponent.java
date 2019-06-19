@@ -172,8 +172,6 @@ public class AppComponent {
 	);
 
 	private static String dhcpServer = "defaultName";
-	private static String myName2 = "defaultName";
-	/* --- */
 
     @Activate
     protected void activate() {
@@ -215,9 +213,6 @@ public class AppComponent {
 			if(cfg.dhcpserver() != null){
 				dhcpServer = cfg.dhcpserver();
 			}
-			if(cfg.myname2() != null){
-				myName2 = cfg.myname2();
-			}
 		}
 			
 		@Override
@@ -226,11 +221,11 @@ public class AppComponent {
 			if((event.type() == NetworkConfigEvent.Type.CONFIG_ADDED ||
 				event.type() == NetworkConfigEvent.Type.CONFIG_UPDATED) &&
 				event.configClass().equals(nctu.winlab.project6_0413335.MyConfig.class)){
-
+				
 				nctu.winlab.project6_0413335.MyConfig cfg = cfgService.getConfig(appId, nctu.winlab.project6_0413335.MyConfig.class);
 				reconfigureNetwork(cfg);
-				log.info("Reconfigured, new DHCP server is {}", dhcpServer);
-				log.info("demo: {}", myName2);
+
+				log.info("(Re)configured, new DHCP server is {}", dhcpServer);
 			}
 		}
 	}
@@ -366,7 +361,6 @@ public class AppComponent {
 			}
 			/* --- */
            
-		    /*
 			HostId dstid = HostId.hostId(ethPkt.getDestinationMAC());
 			Host dst = hostService.getHost(dstid);
 			
@@ -448,7 +442,6 @@ public class AppComponent {
 				log.info("install rule for: " + tmp.deviceId());
 				installRule(context, port, tmp.deviceId());
 			}
-			*/
         }
 
     }

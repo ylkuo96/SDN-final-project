@@ -8,5 +8,6 @@
     <reference name="flowRuleService" interface="org.onosproject.net.flow.FlowRuleService" cardinality="1..1" policy="static" bind="bindFlowRuleService" unbind="unbindFlowRuleService"/>
     <reference name="flowObjectiveService" interface="org.onosproject.net.flowobjective.FlowObjectiveService" cardinality="1..1" policy="static" bind="bindFlowObjectiveService" unbind="unbindFlowObjectiveService"/>
     <reference name="coreService" interface="org.onosproject.core.CoreService" cardinality="1..1" policy="static" bind="bindCoreService" unbind="unbindCoreService"/>
+    <reference name="cfgService" interface="org.onosproject.net.config.NetworkConfigRegistry" cardinality="1..1" policy="static" bind="bindCfgService" unbind="unbindCfgService"/>
     <implementation class="nctu.winlab.project8_0413335.AppComponent"/>
 </scr:component>
