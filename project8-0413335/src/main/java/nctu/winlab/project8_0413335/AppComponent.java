@@ -107,6 +107,9 @@ import static org.onosproject.net.config.basics.SubjectFactories.APP_SUBJECT_FAC
 
 import org.slf4j.LoggerFactory;
 
+import org.onlab.packet.VlanId;
+import org.onlab.packet.EthType;
+
 /**
  * Skeletal ONOS application component.
  */
@@ -117,7 +120,7 @@ public class AppComponent {
     private final Logger log = LoggerFactory.getLogger(getClass());
 	
 	// set timeout & priority
-	private static final int DEFAULT_TIMEOUT = 60;
+	private static final int DEFAULT_TIMEOUT = 10;
 	// priority should under arp
 	private static final int DEFAULT_PRIORITY = 39998;
 
@@ -180,11 +183,11 @@ public class AppComponent {
 	private static String s3segID = "default";
 	private static String s2subNet = "default";
 	private static String s3subNet = "default";
-	private static String Host1 = "default";
-	private static String Host2 = "default";
-	private static String Host3 = "default";
-	private static String Host4 = "default";
-	private static String Host5 = "default";
+	private static String H1 = "default";
+	private static String H2 = "default";
+	private static String H3 = "default";
+	private static String H4 = "default";
+	private static String H5 = "default";
 	/* --- */
 	
     @Activate
@@ -197,9 +200,9 @@ public class AppComponent {
 		cfgListener.reconfigureNetwork(cfgService.getConfig(appId, nctu.winlab.project8_0413335.MyConfig.class));
 		/* --- */
 
-        packetService.addProcessor(processor, PacketProcessor.director(2));
+        //packetService.addProcessor(processor, PacketProcessor.director(2));
 		topologyService.addListener(topologyListener);
-        requestIntercepts();
+        //requestIntercepts();
         log.info("Started", appId.id());		
     }
 
@@ -210,10 +213,10 @@ public class AppComponent {
 		factories.forEach(cfgService::unregisterConfigFactory);
 		/* --- */
 
-		withdrawIntercepts();
         flowRuleService.removeFlowRulesById(appId);
-		packetService.removeProcessor(processor);
+		//packetService.removeProcessor(processor);
 		topologyService.removeListener(topologyListener);
+		//withdrawIntercepts();
         processor = null;
         log.info("Stopped");
     }
@@ -240,19 +243,19 @@ public class AppComponent {
 				s3subNet = cfg.s3subnet();
 			}
 			if(cfg.h1() != null){
-				Host1 = cfg.h1();
+				H1 = cfg.h1();
 			}
 			if(cfg.h2() != null){
-				Host2 = cfg.h2();
+				H2 = cfg.h2();
 			}
 			if(cfg.h3() != null){
-				Host3 = cfg.h3();
+				H3 = cfg.h3();
 			}
 			if(cfg.h4() != null){
-				Host4 = cfg.h4();
+				H4 = cfg.h4();
 			}
 			if(cfg.h5() != null){
-				Host5 = cfg.h5();
+				H5 = cfg.h5();
 			}
 		}
 			
@@ -265,16 +268,54 @@ public class AppComponent {
 
 				nctu.winlab.project8_0413335.MyConfig cfg = cfgService.getConfig(appId, nctu.winlab.project8_0413335.MyConfig.class);
 				reconfigureNetwork(cfg);
+				/*
 				log.info("(Re)configured, new s1 segment ID is {}", s1segID); 
 				log.info("(Re)configured, new s2 segment ID is {}", s2segID); 
 				log.info("(Re)configured, new s3 segment ID is {}", s3segID); 
 				log.info("(Re)configured, new s2 subnet is {}", s2subNet); 
 				log.info("(Re)configured, new s3 subnet is {}", s3subNet); 
-				log.info("(Re)configured, new Host1 is switch/port/mac: {}", Host1); 
-				log.info("(Re)configured, new Host2 is switch/port/mac: {}", Host2); 
-				log.info("(Re)configured, new Host3 is switch/port/mac: {}", Host3); 
-				log.info("(Re)configured, new Host4 is switch/port/mac: {}", Host4); 
-				log.info("(Re)configured, new Host5 is switch/port/mac: {}", Host5);
+				log.info("(Re)configured, new Host1 is switch/port/mac: {}", H1); 
+				log.info("(Re)configured, new Host2 is switch/port/mac: {}", H2); 
+				log.info("(Re)configured, new Host3 is switch/port/mac: {}", H3); 
+				log.info("(Re)configured, new Host4 is switch/port/mac: {}", H4); 
+				log.info("(Re)configured, new Host5 is switch/port/mac: {}", H5);
+				*/
+
+				/* install flow rules */
+				// intra packets
+				installR(PortNumber.portNumber(H1.split("/")[1]), DeviceId.deviceId(H1.split("/")[0]), MacAddress.valueOf(H1.split("/")[2]));
+				installR(PortNumber.portNumber(H2.split("/")[1]), DeviceId.deviceId(H2.split("/")[0]), MacAddress.valueOf(H2.split("/")[2]));
+				installR(PortNumber.portNumber(H3.split("/")[1]), DeviceId.deviceId(H3.split("/")[0]), MacAddress.valueOf(H3.split("/")[2]));
+				installR(PortNumber.portNumber(H4.split("/")[1]), DeviceId.deviceId(H4.split("/")[0]), MacAddress.valueOf(H4.split("/")[2]));
+				installR(PortNumber.portNumber(H5.split("/")[1]), DeviceId.deviceId(H5.split("/")[0]), MacAddress.valueOf(H5.split("/")[2]));
+
+				// segment routing
+				DeviceId s1did = DeviceId.deviceId("of:0000000000000001");
+				DeviceId s2did = DeviceId.deviceId("of:0000000000000002");
+				DeviceId s3did = DeviceId.deviceId("of:0000000000000003");
+				
+				IpPrefix s3ip = IpPrefix.valueOf(s3subNet);
+				IpPrefix s2ip = IpPrefix.valueOf(s2subNet);
+				
+				PortNumber s2tos1port = PortNumber.portNumber("1");
+				PortNumber s1tos3port = PortNumber.portNumber("2");
+				PortNumber s3tos1port = PortNumber.portNumber("1");
+				PortNumber s1tos2port = PortNumber.portNumber("1");
+				
+				VlanId s3vid = VlanId.vlanId(s3segID);
+				VlanId s2vid = VlanId.vlanId(s2segID);
+
+				// for s2
+				installSegRuleSrc(s2did, s3ip, s3vid, s2tos1port);
+				installSegRuleDst(s2did, s2vid);
+
+				// for s1
+				installSegRuleMid(s1tos3port, s1did, s3vid);
+				installSegRuleMid(s1tos2port, s1did, s2vid);
+
+				// for s3
+				installSegRuleSrc(s3did, s2ip, s2vid, s3tos1port);
+				installSegRuleDst(s3did, s3vid);
 			}
 		}
 	}
@@ -306,8 +347,6 @@ public class AppComponent {
 
         @Override
         public void process(PacketContext context) {
-            // Stop processing if the packet has been handled, since we
-            // can't do any more to it.
             if (context.isHandled()) {
                 return;
             }
@@ -319,17 +358,14 @@ public class AppComponent {
                 return;
             }
 
-			// do not process control packets, like LLDP and BDDP packets
             if (isControlPacket(ethPkt)) {
                 return;
             }
 
 			if(ethPkt.getEtherType() == Ethernet.TYPE_ARP){
-				//flood(context);
 				return;
 			}
 
-			// DHCP unicast will handle it
 			if(ethPkt.getDestinationMAC().equals(MacAddress.BROADCAST)){
 				return;
 			}
@@ -353,7 +389,7 @@ public class AppComponent {
 			//log.info("packet-in from: " + switchId);			
 
 			if(switchId.equals(dst.location().deviceId())){
-				installRule(context, dst.location().port(), switchId, dst);
+				//installRule(context, dst.location().port(), switchId, dst);
 				log.info("install rule for: " + switchId);
 				return;
 			}
@@ -416,7 +452,7 @@ public class AppComponent {
 				}
 				
 				log.info("install rule for: " + tmp.deviceId());
-				installRule(context, port, tmp.deviceId(), dst);
+				//installRule(context, port, tmp.deviceId(), dst);
 			}
         }
 
@@ -509,26 +545,10 @@ public class AppComponent {
         context.send();
     }	
 	
-    // Install a rule forwarding the packet to the specified port.
-    private void installRule(PacketContext context, PortNumber portNumber, DeviceId did, Host dst) {
-		InboundPacket pkt = context.inPacket();
-        Ethernet inPkt = pkt.parsed();
-		PortNumber inPort = pkt.receivedFrom().port();
-		/*
-		Set<IpAddress> ips = dst.ipAddresses();
-		while(ips.size() == 0){
-			ips = dst.ipAddresses();
-		}
-		IpAddress ipaddr = (IpAddress) ips.toArray()[0];
-		//IpPrefix ip = new IpPrefix(ipaddr, 24);
-		IpPrefix ip = new IpPrefix();
-		ip.valueOf(ipaddr, 24);
-		*/
-
+    private void installR(PortNumber portNumber, DeviceId did, MacAddress dstMac) {
 		// flow rule selector
         TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
-		selectorBuilder.matchEthDst(inPkt.getDestinationMAC()).matchEthSrc(inPkt.getSourceMAC());
-		//.matchIPDst(ip);
+		selectorBuilder.matchEthDst(dstMac);
 
 		// flow rule builder
         TrafficTreatment treatment = DefaultTrafficTreatment.builder()
@@ -539,17 +559,96 @@ public class AppComponent {
         ForwardingObjective forwardingObjective = DefaultForwardingObjective.builder()
                 .withSelector(selectorBuilder.build())
                 .withTreatment(treatment)
-                //.withPriority(55566)
-                .withPriority(flowPriority)
+                .withPriority(39997)
+                //.withPriority(flowPriority)
                 .withFlag(ForwardingObjective.Flag.VERSATILE)
                 .fromApp(appId)
-                .makeTemporary(flowTimeout)
-                //.makeTemporary(0)
+				.makePermanent()
+                //.makeTemporary(flowTimeout)
                 .add();
 
 		// flow modify
         flowObjectiveService.forward(did, forwardingObjective);
     }	
+	
+	// for segment routing
+    private void installSegRuleMid(PortNumber portNumber, DeviceId did, VlanId vid) {
+		// flow rule selector
+        TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
+		selectorBuilder.matchVlanId(vid);
+
+		// flow rule builder
+        TrafficTreatment treatment = DefaultTrafficTreatment.builder()
+                .setOutput(portNumber)
+                .build();
+
+		// construct flow rule
+        ForwardingObjective forwardingObjective = DefaultForwardingObjective.builder()
+                .withSelector(selectorBuilder.build())
+                .withTreatment(treatment)
+                .withPriority(flowPriority)
+                .withFlag(ForwardingObjective.Flag.VERSATILE)
+                .fromApp(appId)
+                //.makeTemporary(flowTimeout)
+				.makePermanent()
+                .add();
+
+		// flow modify
+        flowObjectiveService.forward(did, forwardingObjective);
+    }
+
+	private void installSegRuleDst(DeviceId did, VlanId vid) {
+		// flow rule selector
+        TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
+		selectorBuilder.matchVlanId(vid);
+
+		// flow rule builder
+        TrafficTreatment treatment = DefaultTrafficTreatment.builder()
+				.popVlan()
+				.setOutput(PortNumber.FLOOD)
+                .build();
+
+		// construct flow rule
+        ForwardingObjective forwardingObjective = DefaultForwardingObjective.builder()
+                .withSelector(selectorBuilder.build())
+                .withTreatment(treatment)
+                .withPriority(flowPriority)
+                .withFlag(ForwardingObjective.Flag.VERSATILE)
+                .fromApp(appId)
+				.makePermanent()
+                //.makeTemporary(flowTimeout)
+                .add();
+
+		// flow modify
+        flowObjectiveService.forward(did, forwardingObjective);
+    }
+
+	private void installSegRuleSrc(DeviceId did, IpPrefix ip, VlanId vid, PortNumber portNumber) {
+		// flow rule selector
+        TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
+		selectorBuilder.matchEthType(Ethernet.TYPE_IPV4).matchIPDst(ip.getIp4Prefix());
+
+		// flow rule builder
+        TrafficTreatment treatment = DefaultTrafficTreatment.builder()
+				.pushVlan()
+				.setVlanId(vid)
+                .setOutput(portNumber)
+                .build();
+
+		// construct flow rule
+        ForwardingObjective forwardingObjective = DefaultForwardingObjective.builder()
+                .withSelector(selectorBuilder.build())
+                .withTreatment(treatment)
+                .withPriority(flowPriority)
+                .withFlag(ForwardingObjective.Flag.VERSATILE)
+                .fromApp(appId)
+				.makePermanent()
+                //.makeTemporary(flowTimeout)
+                .add();
+
+		// flow modify
+        flowObjectiveService.forward(did, forwardingObjective);
+    }
 
 	private class InternalTopologyListener implements TopologyListener {
 		@Override
