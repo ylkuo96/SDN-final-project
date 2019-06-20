@@ -583,6 +583,7 @@ public class AppComponent {
 							MacAddress mac = allSwitches.switchArray.get(j).hostArray.get(k).mac;
 							installSegRuleDst(did, dstvid, mac, port);
 						}
+						break;
 					}
 				}
 			}
