@@ -193,13 +193,9 @@ public class AppComponent {
     @Activate
     protected void activate() {
 		appId = coreService.registerApplication("nctu.winlab.project8_0413335");
-
-		/* --- */
 		cfgService.addListener(cfgListener);
 		factories.forEach(cfgService::registerConfigFactory);
 		cfgListener.reconfigureNetwork(cfgService.getConfig(appId, nctu.winlab.project8_0413335.MyConfig.class));
-		/* --- */
-
         //packetService.addProcessor(processor, PacketProcessor.director(2));
 		topologyService.addListener(topologyListener);
         //requestIntercepts();
@@ -208,11 +204,8 @@ public class AppComponent {
 
     @Deactivate
     protected void deactivate() {
-		/* --- */
 		cfgService.removeListener(cfgListener);
 		factories.forEach(cfgService::unregisterConfigFactory);
-		/* --- */
-
         flowRuleService.removeFlowRulesById(appId);
 		//packetService.removeProcessor(processor);
 		topologyService.removeListener(topologyListener);
@@ -221,7 +214,6 @@ public class AppComponent {
         log.info("Stopped");
     }
 
-	/* --- */
 	private class InternalConfigListener implements NetworkConfigListener {
 		private void reconfigureNetwork(nctu.winlab.project8_0413335.MyConfig cfg){
 			if(cfg == null){
@@ -268,18 +260,6 @@ public class AppComponent {
 
 				nctu.winlab.project8_0413335.MyConfig cfg = cfgService.getConfig(appId, nctu.winlab.project8_0413335.MyConfig.class);
 				reconfigureNetwork(cfg);
-				/*
-				log.info("(Re)configured, new s1 segment ID is {}", s1segID); 
-				log.info("(Re)configured, new s2 segment ID is {}", s2segID); 
-				log.info("(Re)configured, new s3 segment ID is {}", s3segID); 
-				log.info("(Re)configured, new s2 subnet is {}", s2subNet); 
-				log.info("(Re)configured, new s3 subnet is {}", s3subNet); 
-				log.info("(Re)configured, new Host1 is switch/port/mac: {}", H1); 
-				log.info("(Re)configured, new Host2 is switch/port/mac: {}", H2); 
-				log.info("(Re)configured, new Host3 is switch/port/mac: {}", H3); 
-				log.info("(Re)configured, new Host4 is switch/port/mac: {}", H4); 
-				log.info("(Re)configured, new Host5 is switch/port/mac: {}", H5);
-				*/
 
 				/* install flow rules */
 				// intra packets
@@ -294,57 +274,123 @@ public class AppComponent {
 				DeviceId s2did = DeviceId.deviceId("of:0000000000000002");
 				DeviceId s3did = DeviceId.deviceId("of:0000000000000003");
 				
+				VlanId s3vid = VlanId.vlanId(s3segID);
+				VlanId s2vid = VlanId.vlanId(s2segID);
+				
 				IpPrefix s3ip = IpPrefix.valueOf(s3subNet);
 				IpPrefix s2ip = IpPrefix.valueOf(s2subNet);
 				
-				PortNumber s2tos1port = PortNumber.portNumber("1");
-				PortNumber s1tos3port = PortNumber.portNumber("2");
-				PortNumber s3tos1port = PortNumber.portNumber("1");
-				PortNumber s1tos2port = PortNumber.portNumber("1");
+				// get graph
+				TopologyGraph graph = topologyService.getGraph(topologyService.currentTopology());
+				Set<TopologyVertex> V_Set = graph.getVertexes();
+				Set<TopologyEdge> E_Set = graph.getEdges();
+
+				int srcIdx = -1;
+				int dstIdx = -1;
 				
-				VlanId s3vid = VlanId.vlanId(s3segID);
-				VlanId s2vid = VlanId.vlanId(s2segID);
+				// path from s2 subnet to s3 subnet
+				for(int i = 0; i < V_Set.size(); i ++){
+					TopologyVertex tmpV = (TopologyVertex)V_Set.toArray()[i];
+					if(tmpV.deviceId().equals(s2did)){
+						srcIdx = i;
+					}
+					
+					if(tmpV.deviceId().equals(s3did)){
+						dstIdx = i;
+					}
 
-				// for s2
-				installSegRuleSrc(s2did, s3ip, s3vid, s2tos1port);
-				installSegRuleDst(s2did, s2vid);
+					if(srcIdx != -1 && dstIdx != -1){
+						break;
+					}
+				}
+				BFS(graph, V_Set, E_Set, srcIdx, dstIdx);
+				for(int i = 0; i < shortestPath.size(); i ++){
+					int idx = shortestPath.get(i);
+					TopologyVertex tmp = (TopologyVertex)V_Set.toArray()[idx];
+					DeviceId did = tmp.deviceId();
+					if(i == 0){
+						int nidx = shortestPath.get(i + 1);
+						PortNumber port = getport(nidx, tmp, V_Set, E_Set, shortestPath);
+						installSegRuleSrc(did, s3ip, s3vid, port);
+					}
+					else if(i == (shortestPath.size() - 1)){
+						MacAddress mac = MacAddress.valueOf(H3.split("/")[2]);
+						PortNumber port = PortNumber.portNumber(H3.split("/")[1]);
+						installSegRuleDst(did, s3vid, mac, port);
 
-				// for s1
-				installSegRuleMid(s1tos3port, s1did, s3vid);
-				installSegRuleMid(s1tos2port, s1did, s2vid);
+						mac = MacAddress.valueOf(H4.split("/")[2]);
+						port = PortNumber.portNumber(H4.split("/")[1]);
+						installSegRuleDst(did, s3vid, mac, port);
+					}
+					else{
+						int nidx = shortestPath.get(i + 1);
+						PortNumber port = getport(nidx, tmp, V_Set, E_Set, shortestPath);
+						installSegRuleMid(port, did, s3vid);
+					}
+				}
 
-				// for s3
-				installSegRuleSrc(s3did, s2ip, s2vid, s3tos1port);
-				installSegRuleDst(s3did, s3vid);
+				// path from s3 subnet to s2 subnet
+				srcIdx = -1;
+				dstIdx = -1;
+				for(int i = 0; i < V_Set.size(); i ++){
+					TopologyVertex tmpV = (TopologyVertex)V_Set.toArray()[i];
+					if(tmpV.deviceId().equals(s3did)){
+						srcIdx = i;
+					}
+					
+					if(tmpV.deviceId().equals(s2did)){
+						dstIdx = i;
+					}
+
+					if(srcIdx != -1 && dstIdx != -1){
+						break;
+					}
+				}
+				BFS(graph, V_Set, E_Set, srcIdx, dstIdx);
+				for(int i = 0; i < shortestPath.size(); i ++){
+					int idx = shortestPath.get(i);
+					TopologyVertex tmp = (TopologyVertex)V_Set.toArray()[idx];
+					DeviceId did = tmp.deviceId();
+					if(i == 0){
+						int nidx = shortestPath.get(i + 1);
+						PortNumber port = getport(nidx, tmp, V_Set, E_Set, shortestPath);
+						installSegRuleSrc(did, s2ip, s2vid, port);
+					}
+					else if(i == (shortestPath.size() - 1)){
+						MacAddress mac = MacAddress.valueOf(H1.split("/")[2]);
+						PortNumber port = PortNumber.portNumber(H1.split("/")[1]);
+						installSegRuleDst(did, s2vid, mac, port);
+
+						mac = MacAddress.valueOf(H2.split("/")[2]);
+						port = PortNumber.portNumber(H2.split("/")[1]);
+						installSegRuleDst(did, s2vid, mac, port);
+					}
+					else{
+						int nidx = shortestPath.get(i + 1);
+						PortNumber port = getport(nidx, tmp, V_Set, E_Set, shortestPath);
+						installSegRuleMid(port, did, s2vid);
+					}
+				}
+
 			}
 		}
 	}
-	/* --- */
-
-
-    /**
-     * Request packet in via packet service.
-     */
+	
+	/*
     private void requestIntercepts() {
         TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
         selector.matchEthType(Ethernet.TYPE_IPV4);
         packetService.requestPackets(selector.build(), PacketPriority.REACTIVE, appId);
     }	
 
-    /**
-     * Cancel request for packet in via packet service.
-     */
     private void withdrawIntercepts() {
         TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
         selector.matchEthType(Ethernet.TYPE_IPV4);
         packetService.cancelPackets(selector.build(), PacketPriority.REACTIVE, appId);
-    }	
+    }
+	*/
 	
-	/**
-     * Packet processor responsible for forwarding packets along their paths.
-     */
     private class LearningSwitchProcessor implements PacketProcessor {
-
         @Override
         public void process(PacketContext context) {
             if (context.isHandled()) {
@@ -370,6 +416,7 @@ public class AppComponent {
 				return;
 			}
 
+			/*
             HostId dstid = HostId.hostId(ethPkt.getDestinationMAC());
 			Host dst = hostService.getHost(dstid);
 			while(dst == null){
@@ -454,6 +501,7 @@ public class AppComponent {
 				log.info("install rule for: " + tmp.deviceId());
 				//installRule(context, port, tmp.deviceId(), dst);
 			}
+			*/
         }
 
     }
@@ -522,7 +570,24 @@ public class AppComponent {
 			return ProcessPath(srcIdx, source, path);
 		}
 	}
-	
+
+	// from edge link get output port
+	private PortNumber getport(int nidx, TopologyVertex tmp, Set<TopologyVertex> V_Set, Set<TopologyEdge> E_Set, ArrayList<Integer> shortestPath){
+		PortNumber port = PortNumber.portNumber(-1);
+		for(int j = 0; j < E_Set.size(); j ++){
+			TopologyEdge tmpE = (TopologyEdge)E_Set.toArray()[j];
+			TopologyVertex ntmp = (TopologyVertex)V_Set.toArray()[nidx];
+			if(tmpE.link().src().deviceId().equals(tmp.deviceId())){
+				if(tmpE.link().dst().deviceId().equals(ntmp.deviceId())){
+					port = tmpE.link().src().port();
+					return port;
+				}
+			}
+		}
+
+		return port;
+	}
+
     // Indicates whether this is a control packet, e.g. LLDP, BDDP
     private boolean isControlPacket(Ethernet eth) {
         short type = eth.getEtherType();
@@ -597,15 +662,15 @@ public class AppComponent {
         flowObjectiveService.forward(did, forwardingObjective);
     }
 
-	private void installSegRuleDst(DeviceId did, VlanId vid) {
+	private void installSegRuleDst(DeviceId did, VlanId vid, MacAddress mac, PortNumber port) {
 		// flow rule selector
         TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
-		selectorBuilder.matchVlanId(vid);
+		selectorBuilder.matchVlanId(vid).matchEthDst(mac);
 
 		// flow rule builder
         TrafficTreatment treatment = DefaultTrafficTreatment.builder()
 				.popVlan()
-				.setOutput(PortNumber.FLOOD)
+				.setOutput(port)
                 .build();
 
 		// construct flow rule
