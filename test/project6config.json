@@ -1,0 +1,10 @@
+{
+  "apps": {
+    "nctu.winlab.project6_0413335" : {
+      "myconfig" : {
+        "dhcpServer": "of:0000000000000002/4"
+      }
+    }
+  }
+}
+
